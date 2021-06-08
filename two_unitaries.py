@@ -5,7 +5,7 @@ CSC299 ROP: Simple implementation
 import tequila as tq
 import copy
 from typing import Iterable
-import numpy as np
+from numpy import arcsin, sqrt, floor, pi
 
 
 def prepare_2unitary(ancillary, sum_of_unitaries: list[tuple[float, tq.QCircuit]]) -> tq.QCircuit:
@@ -19,7 +19,7 @@ def prepare_2unitary(ancillary, sum_of_unitaries: list[tuple[float, tq.QCircuit]
     """
     alpha_0, alpha_1 = sum_of_unitaries[0][0], sum_of_unitaries[1][0]
 
-    theta = -2 * np.arcsin(np.sqrt(alpha_1 / (alpha_0 + alpha_1)))
+    theta = -2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
 
     return tq.gates.Ry(target=ancillary, angle=theta)
 
@@ -95,9 +95,23 @@ def algorithm_2unitary(unitaries: list[tuple[float, tq.QCircuit]]) -> tq.QCircui
     return circ
 
 
-def check_weighted_sum(nonunitary: tq.numpy.array, unitaries: list[tuple[complex, tq.QCircuit]]) \
+def check_weighted_sum(nonunitary: tq.numpy.array, unitaries: list[tuple[float, tq.QCircuit]]) \
         -> bool:
     """
     Return whether the matrix given is indeed the weighted sum of the unitaries.
     """
+    # TODO
     ...
+
+
+def amplitude_amplification() -> tq.QCircuit:
+    """Return ..."""
+    ...
+
+
+def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
+    """Return the number of times to apply the amplitude amplificiation to maximize
+    success probability"""
+    s = sum(pair[0] for pair in unitaries)
+    denom = 4 * arcsin(1 / s)
+    return floor(pi / denom)
