@@ -4,41 +4,58 @@ LCU implementation with two qubit ancilla
 """
 
 import tequila as tq
-from typing import Iterable, Optional
+from tequila import TequilaWarning
+from typing import Iterable
 import numpy as np
 from math import sqrt
 import random
-import time
+# import time
 import copy
 
 
-# def prepare_operator_2ancilla(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]]) \
-#         -> tq.QCircuit:
-#     """Return the circuit corresponding to the prepare operator, for the case of two ancilla."""
-#     # TODO
-#     # Define required state
-#     coefficients = [unit[0] for unit in unitaries]
-#     normalize = sqrt(sum(coefficients))
-#
-#     coefficients = [coeff / normalize for coeff in coefficients]
-#
-#     if len(coefficients) < 4:
-#         coefficients.append(0)
-#
-#     # use trig identities for cosAcosB, sinAsinB, cosAsinB, sinAcosB.
-#
-#     ...
-
-
-def prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]]) \
+def lcu(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]], prepare: tq.QCircuit = None) \
         -> tq.QCircuit:
+    """Return the circuit corresponding to the prepare operator.
+
+    Preconditions:
+        - TODO
+    """
+    # TODO
+    if prepare is None:
+        prep, infid = _prepare_operator_optimize_2anc(ancilla, unitaries)
+        if 1 - infid.energy < 0.995:
+            raise TequilaWarning
+    else:
+        prep = prepare
+
+        m = len(ancilla)
+
+        # Define required state
+        coefficients = [unit[0] for unit in unitaries]
+        normalize = sqrt(sum(coefficients))
+
+        coefficients = [coeff / normalize for coeff in coefficients]
+
+        if len(coefficients) < 2 ** m:
+            coefficients.append(0)
+
+        wfn_target = tq.QubitWaveFunction.from_array(np.asarray(coefficients))
+        wfn_target = wfn_target.normalize()
+
+        if tq.simulate(fidelity(wfn_target, prepare)) < 0.995:
+            raise TequilaWarning
+
+    return prep + select_operator(ancilla, unitaries) + prep.dagger()
+
+
+def _prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]]) \
+        -> tuple[tq.QCircuit, tq.optimizers]:
     """Return the circuit corresponding to the prepare operator.
 
     Preconditions:
         - ...
         - TODO
     """
-    # TODO
     m = len(ancilla)
 
     # Define required state
@@ -61,67 +78,38 @@ def prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, t
     th0 = {key: random.uniform(0, np.pi) for key in th}
     phi0 = {key: random.uniform(0, np.pi) for key in phi}
     lam0 = {key: random.uniform(0, np.pi) for key in lam}
-    all_values = {**th0, **phi0, **lam0}
+    initial_values = {**th0, **phi0, **lam0}
 
     # Define (in)fidelity
-    wfn_pqc = tq.simulate(pqc, variables=all_values)
-    inf = fidelity(wfn_target, pqc, is_inner_pdt=False)
+    # wfn_pqc = tq.simulate(pqc, variables=initial_values)
+    inf = 1.0 - fidelity(wfn_target, pqc)
+
+    # Define bounds (if supported)
+    min_angles, max_angles = 0, 4 * np.pi
+    bnds_list = [[min_angles, max_angles]]
+    for _ in range(len(initial_values)):
+        bnds_list.append([min_angles, max_angles])
+    th_dict = dict(zip([str(th[i]) for i in range(0, n_th)], bnds_list))
+    phi_dict = dict(zip([str(phi[i]) for i in range(0, n_phi)], bnds_list))
+    lam_dict = dict(zip([str(lam[i]) for i in range(0, n_lam)], bnds_list))
+
+    bnds = {**th_dict, **phi_dict, **lam_dict}
 
     # Minimize objective
-    max_angles = 2 * np.pi
-    min_angles = 0
-    bnds_list = [[min_angles, max_angles]]
-    for _ in range(len(all_values)):
-        bnds_list.append([min_angles, max_angles])
-    bnds = dict(zip([str(th[i]) for i in range(0, n_th)], bnds_list))
-    bnds = {**bnds, **dict(zip([str(phi[i]) for i in range(0, n_phi)], bnds_list))}
-    bnds = {**bnds, **dict(zip([str(lam[i]) for i in range(0, n_lam)], bnds_list))}
+    # t0 = time.time()
+    infid = tq.minimize(objective=inf, initial_values=initial_values, method='TNC',
+                        method_bounds=bnds, silent=True)
+    # t1 = time.time()
 
-    # TODO
+    return pqc, infid
 
 
 def fidelity(wfn_target: tq.wavefunction.qubit_wavefunction.QubitWaveFunction,
-             qc: tq.QCircuit, is_inner_pdt: Optional[bool] = True) -> float:
-    """Return the fidelity ..."""
-    if is_inner_pdt:
-        wfn_qc = tq.simulate(qc)
-        return abs(wfn_target.inner(wfn_qc)) ** 2
-
-    else:
-        rho_targ = tq.paulis.Projector(wfn=wfn_target)
-        objective = tq.Objective.ExpectationValue(U=qc, H=rho_targ)
-        return float(tq.simulate(objective))
-
-
-def prepare_operator_optimization(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]]) \
-        -> tq.QCircuit:
-    """Return the circuit corresponding to the prepare operator.
-
-    Preconditions:
-        - ...
-        - TODO
-    """
-    # TODO
-    m = len(ancilla)
-
-    # Define required state
-    coefficients = [unit[0] for unit in unitaries]
-    normalize = sqrt(sum(coefficients))
-
-    coefficients = [coeff / normalize for coeff in coefficients]
-
-    if len(coefficients) < 2 ** m:
-        coefficients.append(0)
-
-    wfn_target = tq.QubitWaveFunction.from_array(np.asarray(coefficients))
-    wfn_target = wfn_target.normalize()
-
-    # Create parametrized circuit
-
-    # Objective function: infidelity
-
-    # Minimize infidelity
-    ...
+             qc: tq.QCircuit) -> tq.Objective:
+    """Return the fidelity between wfn_target and the result of applying """
+    rho_targ = tq.paulis.Projector(wfn=wfn_target)
+    objective = tq.Objective.ExpectationValue(U=qc, H=rho_targ)
+    return objective
 
 
 def param_circ(anc: list) \
@@ -191,7 +179,7 @@ def controlled_unitary(ancilla: list, unitary: tq.QCircuit, n: int) -> tq.QCircu
     circuit = tq.QCircuit()
     for i in range(len(binary_list)):
         if binary_list[i] == 0:
-            circuit += tq.gates.X(target=ancilla[m-i-1])
+            circuit += tq.gates.X(target=ancilla[m - i - 1])
     reverse_gates = circuit.dagger()
 
     circuit += _control_unitary(ancilla, unitary)
@@ -252,7 +240,6 @@ def example_func_select() -> tq.QCircuit:
     unitaries = [(0.5, tq.gates.H(3)), (0.5, tq.gates.Z(3)), (0.5, tq.gates.X(4)),
                  (0.5, tq.gates.Y(4)), (0.5, tq.gates.H(3))]
     return select_operator(ancilla=ancilla, sum_of_unitaries=unitaries)
-
 
 # if __name__ == '__main__':
 #     print(example_func_select())

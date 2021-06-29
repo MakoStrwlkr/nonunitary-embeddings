@@ -104,9 +104,43 @@ def check_weighted_sum(nonunitary: tq.numpy.array, unitaries: list[tuple[float, 
     ...
 
 
-def amplitude_amplification() -> tq.QCircuit:
-    """Return ..."""
-    ...
+def amp_amp(unitaries: list[tuple[float, tq.QCircuit]], walk_op: tq.QCircuit, ancilla) \
+        -> tq.QCircuit:
+    """Amplitude amplification procedure obtained by repeating the amplitude amplification
+    step for a total of s times where s is the result of function _num_iter()
+    """
+    amplification_operator = amp_amp_op(walk_op, ancilla)
+    s = _num_iter(unitaries)
+
+    sum_of_steps = tq.QCircuit()
+    for _ in range(s):
+        sum_of_steps += amplification_operator
+
+    return walk_op + sum_of_steps
+
+
+def amp_amp_op(walk_op: tq.QCircuit, ancilla) -> tq.QCircuit:
+    """Return WRW.dagger()R,
+     where R is the reflect operator returned by the func reflect_operator"""
+    anc_qubits = ancilla if isinstance(ancilla, list) else [ancilla]
+    state_qubits = [qubit for qubit in walk_op.qubits if qubit not in anc_qubits]
+
+    reflect = reflect_operator(state_qubits=state_qubits, ancilla=ancilla)
+
+    return walk_op + reflect + walk_op.dagger() + reflect
+
+
+def reflect_operator(state_qubits, ancilla) -> tq.QCircuit:
+    """
+    Return the reflection operator R = (I - 2P) \\otimes I_N,
+    where:
+        - I is the identity operator over the ancilla,
+        - P is the projector onto the 0 state for the ancilla,
+        - I_N is the identity operator over the state register
+
+    """
+    return tq.gates.X(target=ancilla) + tq.gates.X(control=ancilla, target=state_qubits) \
+           + tq.gates.X(target=ancilla)
 
 
 def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
@@ -115,3 +149,13 @@ def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
     s = sum(pair[0] for pair in unitaries)
     denom = 4 * arcsin(1 / s)
     return floor(pi / denom)
+
+# Testing amplitude amplification
+
+# TODO
+
+# Main tests
+
+
+if __name__ == '__main__':
+    ...
