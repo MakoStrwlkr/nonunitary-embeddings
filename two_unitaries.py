@@ -99,8 +99,9 @@ def check_weighted_sum(nonunitary: tq.numpy.array, unitaries: list[tuple[float, 
         -> bool:
     """
     Return whether the matrix given is indeed the weighted sum of the unitaries.
+
+    TODO
     """
-    # TODO
     ...
 
 
@@ -127,7 +128,7 @@ def amp_amp_op(walk_op: tq.QCircuit, ancilla) -> tq.QCircuit:
 
     reflect = reflect_operator(state_qubits=state_qubits, ancilla=ancilla)
 
-    return walk_op + reflect + walk_op.dagger() + reflect
+    return reflect + walk_op.dagger() + reflect + walk_op
 
 
 def reflect_operator(state_qubits, ancilla) -> tq.QCircuit:
@@ -153,6 +154,13 @@ def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
 # Testing amplitude amplification
 
 # TODO
+
+
+def test_algorithm(op: tq.QCircuit,
+                   unitaries: list[tuple[float, tq.QCircuit]], ancilla) -> bool:
+    """Test whether this works at all. If it doesn't, welp, I'm in trouble."""
+
+    ...
 
 # Main tests
 

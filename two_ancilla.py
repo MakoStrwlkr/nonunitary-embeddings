@@ -4,13 +4,24 @@ LCU implementation with two qubit ancilla
 """
 
 import tequila as tq
-from tequila import TequilaWarning
+# from tequila import TequilaWarning
 from typing import Iterable
-import numpy as np
+# import numpy as np
+from numpy import arcsin, floor, asarray, pi
 from math import sqrt
 import random
 # import time
 import copy
+
+TARGET_FIDELITY = 0.995
+
+
+class LCUFidelityWarning(Warning):
+    """Warning raised when resulting state has low fidelity with target state."""
+
+    def __str__(self) -> str:
+        """Return a string representation of this warning."""
+        return 'Resulting state may have a lower fidelity with target state than ideally expected'
 
 
 def lcu(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]], prepare: tq.QCircuit = None) \
@@ -20,11 +31,10 @@ def lcu(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]], prepare: tq.Q
     Preconditions:
         - TODO
     """
-    # TODO
     if prepare is None:
         prep, infid = _prepare_operator_optimize_2anc(ancilla, unitaries)
-        if 1 - infid.energy < 0.995:
-            raise TequilaWarning
+        if 1 - infid.energy < TARGET_FIDELITY:
+            raise LCUFidelityWarning
     else:
         prep = prepare
 
@@ -39,11 +49,11 @@ def lcu(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]], prepare: tq.Q
         if len(coefficients) < 2 ** m:
             coefficients.append(0)
 
-        wfn_target = tq.QubitWaveFunction.from_array(np.asarray(coefficients))
+        wfn_target = tq.QubitWaveFunction.from_array(asarray(coefficients))
         wfn_target = wfn_target.normalize()
 
-        if tq.simulate(fidelity(wfn_target, prepare)) < 0.995:
-            raise TequilaWarning
+        if tq.simulate(fidelity(wfn_target, prepare)) < TARGET_FIDELITY:
+            raise LCUFidelityWarning
 
     return prep + select_operator(ancilla, unitaries) + prep.dagger()
 
@@ -67,7 +77,7 @@ def _prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, 
     if len(coefficients) < 2 ** m:
         coefficients.append(0)
 
-    wfn_target = tq.QubitWaveFunction.from_array(np.asarray(coefficients))
+    wfn_target = tq.QubitWaveFunction.from_array(asarray(coefficients))
     wfn_target = wfn_target.normalize()
 
     # Create general parametric circuit
@@ -75,9 +85,9 @@ def _prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, 
     n_th, n_phi, n_lam = len(th), len(phi), len(lam)
 
     # Initialize random wfn
-    th0 = {key: random.uniform(0, np.pi) for key in th}
-    phi0 = {key: random.uniform(0, np.pi) for key in phi}
-    lam0 = {key: random.uniform(0, np.pi) for key in lam}
+    th0 = {key: random.uniform(0, pi) for key in th}
+    phi0 = {key: random.uniform(0, pi) for key in phi}
+    lam0 = {key: random.uniform(0, pi) for key in lam}
     initial_values = {**th0, **phi0, **lam0}
 
     # Define (in)fidelity
@@ -85,7 +95,7 @@ def _prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, 
     inf = 1.0 - fidelity(wfn_target, pqc)
 
     # Define bounds (if supported)
-    min_angles, max_angles = 0, 4 * np.pi
+    min_angles, max_angles = 0, 4 * pi
     bnds_list = [[min_angles, max_angles]]
     for _ in range(len(initial_values)):
         bnds_list.append([min_angles, max_angles])
@@ -240,6 +250,56 @@ def example_func_select() -> tq.QCircuit:
     unitaries = [(0.5, tq.gates.H(3)), (0.5, tq.gates.Z(3)), (0.5, tq.gates.X(4)),
                  (0.5, tq.gates.Y(4)), (0.5, tq.gates.H(3))]
     return select_operator(ancilla=ancilla, sum_of_unitaries=unitaries)
+
+# Amp amp
+
+
+def amp_amp(unitaries: list[tuple[float, tq.QCircuit]], walk_op: tq.QCircuit, ancilla) \
+        -> tq.QCircuit:
+    """Amplitude amplification procedure obtained by repeating the amplitude amplification
+    step for a total of s times where s is the result of function _num_iter()
+    """
+    amplification_operator = amp_amp_op(walk_op, ancilla)
+    s = _num_iter(unitaries)
+
+    sum_of_steps = tq.QCircuit()
+    for _ in range(s):
+        sum_of_steps += amplification_operator
+
+    return walk_op + sum_of_steps
+
+
+def amp_amp_op(walk_op: tq.QCircuit, ancilla) -> tq.QCircuit:
+    """Return WRW.dagger()R,
+     where R is the reflect operator returned by the func reflect_operator"""
+    anc_qubits = ancilla if isinstance(ancilla, list) else [ancilla]
+    state_qubits = [qubit for qubit in walk_op.qubits if qubit not in anc_qubits]
+
+    reflect = reflect_operator(state_qubits=state_qubits, ancilla=ancilla)
+
+    return reflect + walk_op.dagger() + reflect + walk_op
+
+
+def reflect_operator(state_qubits, ancilla) -> tq.QCircuit:
+    """
+    Return the reflection operator R = (I - 2P) \\otimes I_N,
+    where:
+        - I is the identity operator over the ancilla,
+        - P is the projector onto the 0 state for the ancilla,
+        - I_N is the identity operator over the state register
+
+    """
+    return tq.gates.X(target=ancilla) + tq.gates.X(control=ancilla, target=state_qubits) \
+           + tq.gates.X(target=ancilla)
+
+
+def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
+    """Return the number of times to apply the amplitude amplificiation to maximize
+    success probability"""
+    s = sum(pair[0] for pair in unitaries)
+    denom = 4 * arcsin(1 / s)
+    return floor(pi / denom)
+
 
 # if __name__ == '__main__':
 #     print(example_func_select())
