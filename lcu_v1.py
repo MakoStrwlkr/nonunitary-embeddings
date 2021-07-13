@@ -68,7 +68,7 @@ class LCU:
 
         self._amp_amp = amp_amp_op(self._lcu_circ, ancilla)
 
-        self._full_circ = ...
+        self._full_circ = nonunitary_embedding(ancilla, unitaries=unitaries, prepare=prepare)
 
     @property
     def ancilla(self) -> list:
@@ -264,7 +264,7 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
     coefficients = [unit[0] for unit in unitaries]
     normalize = sqrt(sum(coefficients))
 
-    coefficients = [coeff / normalize for coeff in coefficients]
+    coefficients = [sqrt(coeff) / normalize for coeff in coefficients]
 
     if len(coefficients) < 2 ** m:
         extension = [0 for _ in range(2 ** m - len(coefficients) + 1)]
@@ -681,12 +681,14 @@ def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
     """Return the number of times to apply the amplitude amplificiation to maximize
     success probability"""
     s = sum(pair[0] for pair in unitaries)
-    denom = 4 * arcsin(1 / s)
-    return floor(pi / denom)
+    alpha = arcsin(1 / s)
+    frac = (pi / 2) / alpha
+    return floor(0.5 * (frac - 1))
 
 
-def _add_qubits(anc: list[Union[str, int]], length: int) -> list[Union[str, int]]:
-    """Add more items to """
+def _add_qubits(anc: list[Union[str, int]], length: Optional[int] = None) -> list[Union[str, int]]:
+    """Add more items to the ancilla list such that the length increases to length"""
+    ...
 
 
 # Implement testing functions
