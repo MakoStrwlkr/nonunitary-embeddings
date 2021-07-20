@@ -430,9 +430,8 @@ def _prepare_1ancilla(ancilla: Union[list[Union[str, int]], str, int],
     Requires only one ancillary qubit.
 
     Preconditions:
-        - ...
-
-    TODO: Complete docstring
+        - if isinstance(ancilla, list): len(ancilla) == 1
+        - all(coeff > 0 for coeff in [pair[0] for pair in unitaries])
     """
     alpha_0, alpha_1 = unitaries[0][0], unitaries[1][0]
 
