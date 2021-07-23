@@ -384,7 +384,8 @@ def amp_amp_op(walk_op: tq.QCircuit, ancilla: Union[list[Union[str, int]], str, 
     return reflect + walk_op.dagger() + reflect + walk_op
 
 
-def reflect_operator(state_qubits, ancilla: Union[list[Union[str, int]], str, int]) \
+def reflect_operator(state_qubits: Union[list[Union[str, int]], str, int],
+                     ancilla: Union[list[Union[str, int]], str, int]) \
         -> tq.QCircuit:
     """
     Return the reflection operator R = (I - 2P) \\otimes I_N,
@@ -393,10 +394,21 @@ def reflect_operator(state_qubits, ancilla: Union[list[Union[str, int]], str, in
         - P is the projector onto the 0 state for the ancilla,
         - I_N is the identity operator over the state register
 
+    Preconditions:
+        - state_qubits and ancilla have no qubits in common
     """
-    x_gate, cnot_gate = tq.gates.X(target=ancilla), tq.gates.X(control=ancilla, target=state_qubits)
+    if isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set(state_qubits + ancilla))
+    elif isinstance(state_qubits, list) and not isinstance(ancilla, list):
+        qubits = list(set(state_qubits + [ancilla]))
+    elif not isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set([state_qubits] + ancilla))
+    else:
+        qubits = list(set([state_qubits] + [ancilla]))
 
-    return x_gate + cnot_gate + x_gate
+    z_gate, cz_gate = tq.gates.Z(target=qubits), tq.gates.Z(control=ancilla, target=state_qubits)
+
+    return z_gate + cz_gate
 
 
 # Implement special case for exactly 1 qubit in ancilla

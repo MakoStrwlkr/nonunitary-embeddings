@@ -26,7 +26,7 @@ The field of quantum computation evolves rapidly on the hardware as well as on t
 * test.py: collection of all testing functions
 
 ## Requirements
-tequila
+tequila: version >1.4
 	
 ## Setup
 TODO

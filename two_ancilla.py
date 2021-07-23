@@ -289,8 +289,18 @@ def reflect_operator(state_qubits, ancilla) -> tq.QCircuit:
         - I_N is the identity operator over the state register
 
     """
-    return tq.gates.X(target=ancilla) + tq.gates.X(control=ancilla, target=state_qubits) \
-           + tq.gates.X(target=ancilla)
+    if isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set(state_qubits + ancilla))
+    elif isinstance(state_qubits, list) and not isinstance(ancilla, list):
+        qubits = list(set(state_qubits + [ancilla]))
+    elif not isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set([state_qubits] + ancilla))
+    else:
+        qubits = list(set([state_qubits] + [ancilla]))
+
+    z_gate, cz_gate = tq.gates.Z(target=qubits), tq.gates.Z(control=ancilla, target=state_qubits)
+
+    return z_gate + cz_gate
 
 
 def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
