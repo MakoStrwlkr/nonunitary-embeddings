@@ -5,7 +5,8 @@ CSC299 ROP: Simple implementation
 import tequila as tq
 import copy
 from typing import Iterable
-from numpy import arcsin, sqrt, floor, pi
+from numpy import arcsin, sqrt, floor, pi, asarray
+from random import randint
 
 
 def prepare_2unitary(ancillary, sum_of_unitaries: list[tuple[float, tq.QCircuit]]) -> tq.QCircuit:
@@ -140,20 +141,42 @@ def reflect_operator(state_qubits, ancilla) -> tq.QCircuit:
         - I_N is the identity operator over the state register
 
     """
-    return tq.gates.X(target=ancilla) + tq.gates.X(control=ancilla, target=state_qubits) \
-           + tq.gates.X(target=ancilla)
+    if isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set(state_qubits + ancilla))
+    elif isinstance(state_qubits, list) and not isinstance(ancilla, list):
+        qubits = list(set(state_qubits + [ancilla]))
+    elif not isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set([state_qubits] + ancilla))
+    else:
+        qubits = list(set([state_qubits] + [ancilla]))
+
+    z_gate, cz_gate = tq.gates.Z(target=qubits), tq.gates.Z(control=ancilla, target=state_qubits)
+
+    return z_gate + cz_gate
 
 
 def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
     """Return the number of times to apply the amplitude amplificiation to maximize
     success probability"""
     s = sum(pair[0] for pair in unitaries)
-    denom = 4 * arcsin(1 / s)
-    return floor(pi / denom)
+    alpha = arcsin(1 / s)
+    frac = (pi / 2) / alpha
+    return floor(0.5 * (frac - 1))
+
 
 # Testing amplitude amplification
 
 # TODO
+
+
+def test_amp_amp() -> None:
+    """Test whether amp amp works..."""
+    n = randint(1, 4)
+    coeff = [sqrt(0.5) for _ in range(2 ** n)]
+
+    uniform = tq.QubitWaveFunction.from_array(asarray(coeff))
+
+    expected = ...
 
 
 def test_algorithm(op: tq.QCircuit,
@@ -161,6 +184,7 @@ def test_algorithm(op: tq.QCircuit,
     """Test whether this works at all. If it doesn't, welp, I'm in trouble."""
 
     ...
+
 
 # Main tests
 

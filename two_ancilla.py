@@ -72,7 +72,7 @@ def _prepare_operator_optimize_2anc(ancilla: list, unitaries: list[tuple[float, 
     coefficients = [unit[0] for unit in unitaries]
     normalize = sqrt(sum(coefficients))
 
-    coefficients = [coeff / normalize for coeff in coefficients]
+    coefficients = [sqrt(coeff) / normalize for coeff in coefficients]
 
     if len(coefficients) < 2 ** m:
         coefficients.append(0)
@@ -251,8 +251,8 @@ def example_func_select() -> tq.QCircuit:
                  (0.5, tq.gates.Y(4)), (0.5, tq.gates.H(3))]
     return select_operator(ancilla=ancilla, sum_of_unitaries=unitaries)
 
-# Amp amp
 
+# Amp amp
 
 def amp_amp(unitaries: list[tuple[float, tq.QCircuit]], walk_op: tq.QCircuit, ancilla) \
         -> tq.QCircuit:
@@ -289,17 +289,27 @@ def reflect_operator(state_qubits, ancilla) -> tq.QCircuit:
         - I_N is the identity operator over the state register
 
     """
-    return tq.gates.X(target=ancilla) + tq.gates.X(control=ancilla, target=state_qubits) \
-           + tq.gates.X(target=ancilla)
+    if isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set(state_qubits + ancilla))
+    elif isinstance(state_qubits, list) and not isinstance(ancilla, list):
+        qubits = list(set(state_qubits + [ancilla]))
+    elif not isinstance(state_qubits, list) and isinstance(ancilla, list):
+        qubits = list(set([state_qubits] + ancilla))
+    else:
+        qubits = list(set([state_qubits] + [ancilla]))
+
+    z_gate, cz_gate = tq.gates.Z(target=qubits), tq.gates.Z(control=ancilla, target=state_qubits)
+
+    return z_gate + cz_gate
 
 
 def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
     """Return the number of times to apply the amplitude amplificiation to maximize
     success probability"""
     s = sum(pair[0] for pair in unitaries)
-    denom = 4 * arcsin(1 / s)
-    return floor(pi / denom)
-
+    alpha = arcsin(1 / s)
+    frac = (pi / 2) / alpha
+    return floor(0.5 * (frac - 1))
 
 # if __name__ == '__main__':
 #     print(example_func_select())
