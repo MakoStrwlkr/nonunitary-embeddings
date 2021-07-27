@@ -273,19 +273,6 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
     wfn_target = tq.QubitWaveFunction.from_array(asarray(coefficients)).normalize()
 
     # Define zero state
-    m = len(ancilla)
-
-    # Define required state
-    coefficients = [unit[0] for unit in unitaries]
-    normalize = sqrt(sum(coefficients))
-
-    coefficients = [coeff / normalize for coeff in coefficients]
-
-    if len(coefficients) < 2 ** m:
-        extension = [0 for _ in range(2 ** m - len(coefficients) + 1)]
-        coefficients.extend(extension)
-
-    # Define zero state
 
     zero_state_coeff = [1.0] + [0 for _ in range(len(coefficients) - 1)]
     zero_state = tq.QubitWaveFunction.from_array(asarray(zero_state_coeff))
@@ -447,7 +434,7 @@ def _prepare_1ancilla(ancilla: Union[list[Union[str, int]], str, int],
     """
     alpha_0, alpha_1 = unitaries[0][0], unitaries[1][0]
 
-    theta = -2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
+    theta = 2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
 
     return tq.gates.Ry(target=ancilla, angle=theta)
 
@@ -677,7 +664,7 @@ def _target_wfn(ancilla: list[Union[str, int]],
     coefficients = [unit[0] for unit in unitaries]
     normalize = sqrt(sum(coefficients))
 
-    coefficients = [coeff / normalize for coeff in coefficients]
+    coefficients = [sqrt(coeff) / normalize for coeff in coefficients]
 
     if len(coefficients) < 2 ** m:
         extension = [0 for _ in range(2 ** m - len(coefficients) + 1)]

@@ -16,8 +16,8 @@ The field of quantum computation evolves rapidly on the hardware as well as on t
 * Report 1: Simple implementation with a 1 qubit ancilla
 * Report 2: Implementation with a 2 qubit ancilla
 * Report 3: Generalized implementation and testing (In progress)
-* Report 4: Alternative implementations and extensions (Planned)
-* Report 5: Applications of algorithms (Planned)
+* Report 4: Applications of algorithms (In progress)
+* Report 5: Alternative implementations and extensions (In progress)
 
 ### Python files
 * two_unitaries.py: 1 qubit ancilla

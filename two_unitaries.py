@@ -20,7 +20,7 @@ def prepare_2unitary(ancillary, sum_of_unitaries: list[tuple[float, tq.QCircuit]
     """
     alpha_0, alpha_1 = sum_of_unitaries[0][0], sum_of_unitaries[1][0]
 
-    theta = -2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
+    theta = 2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
 
     return tq.gates.Ry(target=ancillary, angle=theta)
 
