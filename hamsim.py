@@ -13,6 +13,29 @@ from math import log10 as log
 from math import factorial
 
 
+def ham_power(ancilla: list[Union[list[Union[str, int]]]],
+              unitaries: list[tuple[float, tq.QCircuit]], power: int) -> tq.QCircuit:
+    """Return the circuit corresponding to H^k, where H is the Hamiltonian corresponding to
+    the linear combination expressed in unitaries, and k = power.
+
+    Preconditions:
+        - len(ancilla) == power
+        - all(2 ** (len(anc) - 1) < len(unitaries) <= 2 ** len(anc) for anc in ancilla)
+        - ancilla has no repeated qubits
+    """
+    circ = tq.QCircuit()
+    anc0 = ancilla[0]
+    lcu = LCU(anc0, unitaries).full_circuit
+
+    for i in range(power):
+        anc = ancilla[i]
+        qubit_map = {anc0[k]: anc[k] for k in range(len(anc0))}
+        lcu = lcu.map_qubits(qubit_map)
+        circ += lcu
+
+    return circ
+
+
 def ham_sim(ancilla: Union[list[Union[str, int]], str, int],
             unitaries: list[tuple[float, tq.QCircuit]],
             error: float, segments: int, time: float) -> tq.QCircuit:

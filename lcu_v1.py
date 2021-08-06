@@ -285,18 +285,25 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
 
     # Don't remove this line! It's required!!
     # assert g.is_hermitian()
-
+    dummy = tq.QCircuit()
+    expval = tq.ExpectationValue(H=G, U=dummy, optimize_measurements=True)
     tq.simulate(tq.gates.Trotterized(generator=g, angle=pi / 2, steps=1))
 
+    # Initialize empty circuit
     circ = tq.QCircuit()
+
+    # Define projector to measure fidelity
     projector = tq.paulis.Projector(wfn=wfn_target)
 
     for step in range(steps):
-        for ps in g.paulistrings:
-            t = tq.Variable((str(ps), step))
-            circ += tq.gates.ExpPauli(paulistring=ps, angle=pi / steps * t)
-
-    # Define objective function to be fidelity, based on the expectation value
+        for i, x in enumerate(expval.get_expectationvalues()):
+            g = x.H[0]
+            circ += x.U
+            circ += tq.gates.Trotterized(generator=g,
+                                         angle=pi / steps * tq.Variable(name=("t", i, step)),
+                                         steps=1)
+            circ += x.U.dagger()
+    # construct an operator that represents the fidelity object
     expect = tq.ExpectationValue(H=projector, U=circ)
 
     if debug:
@@ -306,8 +313,9 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
         result = tq.minimize(1 - expect, initial_values=1.0, silent=True)
         t1 = time.time()
 
-        print("steps = {}, F = {}".format(steps, 1.0 - result.energy))
-        print("time taken = {}".format(t1 - t0))
+        print(f'vqe optimized with steps = {steps}, F = {1.0 - result.energy}')
+        print(f'time taken = {t1 - t0}')
+
     else:
 
         result = tq.minimize(1 - expect, initial_values=1.0, silent=True)
