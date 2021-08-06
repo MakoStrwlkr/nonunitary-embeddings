@@ -273,19 +273,6 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
     wfn_target = tq.QubitWaveFunction.from_array(asarray(coefficients)).normalize()
 
     # Define zero state
-    m = len(ancilla)
-
-    # Define required state
-    coefficients = [unit[0] for unit in unitaries]
-    normalize = sqrt(sum(coefficients))
-
-    coefficients = [coeff / normalize for coeff in coefficients]
-
-    if len(coefficients) < 2 ** m:
-        extension = [0 for _ in range(2 ** m - len(coefficients) + 1)]
-        coefficients.extend(extension)
-
-    # Define zero state
 
     zero_state_coeff = [1.0] + [0 for _ in range(len(coefficients) - 1)]
     zero_state = tq.QubitWaveFunction.from_array(asarray(zero_state_coeff))
@@ -298,18 +285,25 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
 
     # Don't remove this line! It's required!!
     # assert g.is_hermitian()
-
+    dummy = tq.QCircuit()
+    expval = tq.ExpectationValue(H=G, U=dummy, optimize_measurements=True)
     tq.simulate(tq.gates.Trotterized(generator=g, angle=pi / 2, steps=1))
 
+    # Initialize empty circuit
     circ = tq.QCircuit()
+
+    # Define projector to measure fidelity
     projector = tq.paulis.Projector(wfn=wfn_target)
 
     for step in range(steps):
-        for ps in g.paulistrings:
-            t = tq.Variable((str(ps), step))
-            circ += tq.gates.ExpPauli(paulistring=ps, angle=pi / steps * t)
-
-    # Define objective function to be fidelity, based on the expectation value
+        for i, x in enumerate(expval.get_expectationvalues()):
+            g = x.H[0]
+            circ += x.U
+            circ += tq.gates.Trotterized(generator=g,
+                                         angle=pi / steps * tq.Variable(name=("t", i, step)),
+                                         steps=1)
+            circ += x.U.dagger()
+    # construct an operator that represents the fidelity object
     expect = tq.ExpectationValue(H=projector, U=circ)
 
     if debug:
@@ -319,8 +313,9 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
         result = tq.minimize(1 - expect, initial_values=1.0, silent=True)
         t1 = time.time()
 
-        print("steps = {}, F = {}".format(steps, 1.0 - result.energy))
-        print("time taken = {}".format(t1 - t0))
+        print(f'vqe optimized with steps = {steps}, F = {1.0 - result.energy}')
+        print(f'time taken = {t1 - t0}')
+
     else:
 
         result = tq.minimize(1 - expect, initial_values=1.0, silent=True)
@@ -447,7 +442,7 @@ def _prepare_1ancilla(ancilla: Union[list[Union[str, int]], str, int],
     """
     alpha_0, alpha_1 = unitaries[0][0], unitaries[1][0]
 
-    theta = -2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
+    theta = 2 * arcsin(sqrt(alpha_1 / (alpha_0 + alpha_1)))
 
     return tq.gates.Ry(target=ancilla, angle=theta)
 
@@ -677,7 +672,7 @@ def _target_wfn(ancilla: list[Union[str, int]],
     coefficients = [unit[0] for unit in unitaries]
     normalize = sqrt(sum(coefficients))
 
-    coefficients = [coeff / normalize for coeff in coefficients]
+    coefficients = [sqrt(coeff) / normalize for coeff in coefficients]
 
     if len(coefficients) < 2 ** m:
         extension = [0 for _ in range(2 ** m - len(coefficients) + 1)]
