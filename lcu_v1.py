@@ -9,7 +9,7 @@ import tequila as tq
 from warnings import warn
 from numpy import pi, sqrt, arcsin, asarray, floor
 import time
-from typing import Optional, Iterable, Union
+from typing import Optional, Iterable, Union, Any
 import copy
 from random import uniform
 
@@ -66,7 +66,7 @@ class LCU:
 
         self._lcu_circ = lcu(ancilla, unitaries, prepare)
 
-        self._amp_amp = amp_amp_op(self._lcu_circ, ancilla)
+        self._amp_amp = amp_amp_op(self._lcu_circ, ancilla, unitaries)
 
         self._full_circ = nonunitary_embedding(ancilla, unitaries=unitaries, prepare=prepare)
 
@@ -170,7 +170,7 @@ def lcu(ancilla: Union[str, int, list[Union[str, int]]],
     anc = ancilla if isinstance(ancilla, list) else [ancilla]
 
     if len(unitaries) > 2 ** len(anc):
-        warn('Size of ancilla is too small. Adding extra qubits...', LCUMismatchWarning)
+        warn('Size of ancilla is too small. Add extra qubits...', LCUMismatchWarning)
 
         # TODO: Add extra qubits
 
@@ -220,13 +220,11 @@ def _lcu_no_prepare(ancilla: Union[str, int, list[Union[str, int]]],
 
     # if someone mistakenly tries to do this (stupidly)
     if len(unitaries) == 1:
-
-        # Small Easter Egg... If you spotted this, congratulations! Have a bit of humor!
         if easter_egg:
-            print("Uhh... You really don't need to use the LCU algorithm for this...")
-            return unitaries[0][1]
+            warn("Uhh... You really don't need to use the LCU algorithm for this...",
+                 UnnecessaryLCUWarning)
 
-        raise UnnecessaryLCUWarning
+        return unitaries[0][1]
 
     # Check if ancilla has only 1 qubit
     elif (not isinstance(ancilla, list)) or len(ancilla) == 1:
@@ -283,10 +281,11 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
 
     g = 1.0j * (generator_1 - generator_2)
 
+    expval = tq.ExpectationValue(H=g, U=tq.QCircuit(), optimize_measurements=True)
+
     # Don't remove this line! It's required!!
     # assert g.is_hermitian()
-    dummy = tq.QCircuit()
-    expval = tq.ExpectationValue(H=G, U=dummy, optimize_measurements=True)
+
     tq.simulate(tq.gates.Trotterized(generator=g, angle=pi / 2, steps=1))
 
     # Initialize empty circuit
@@ -349,15 +348,13 @@ def select_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]]) \
 
 # Implement amplitude amplification
 
-# TODO
-
 def amp_amp(unitaries: list[tuple[float, tq.QCircuit]], walk_op: tq.QCircuit, ancilla) \
         -> tq.QCircuit:
     """Return the amplitude amplification procedure obtained by repeating
     the amplitude amplification step for a total of s times where s is the
     result of function _num_iter()
     """
-    amplification_operator = amp_amp_op(walk_op, ancilla)
+    amplification_operator = amp_amp_op(walk_op, ancilla, unitaries)
     s = _num_iter(unitaries)
 
     sum_of_steps = tq.QCircuit()
@@ -367,11 +364,22 @@ def amp_amp(unitaries: list[tuple[float, tq.QCircuit]], walk_op: tq.QCircuit, an
     return sum_of_steps
 
 
-def amp_amp_op(walk_op: tq.QCircuit, ancilla: Union[list[Union[str, int]], str, int]) \
+def amp_amp_op(walk_op: tq.QCircuit, ancilla: Union[list[Union[str, int]], str, int],
+               unitaries: list[tuple[float, tq.QCircuit]], qubit: Optional[Any] = None) \
         -> tq.QCircuit:
     """Return WRW.dagger()R,
      where R is the reflect operator returned by the func reflect_operator"""
+    s = sum([pair[0] for pair in unitaries])
+
+    if s == sqrt(2):
+        while qubit is not None and qubit not in walk_op.qubits:
+            print('Stationary angle encountered for amplitude amplification.')
+            qubit = input('Input extra ancilla qubit')
+
     anc_qubits = ancilla if isinstance(ancilla, list) else [ancilla]
+    if qubit is not None:
+        anc_qubits.append(qubit)
+
     state_qubits = [qubit for qubit in walk_op.qubits if qubit not in anc_qubits]
 
     reflect = reflect_operator(state_qubits=state_qubits, ancilla=ancilla)
@@ -411,9 +419,7 @@ def reflect_operator(state_qubits: Union[list[Union[str, int]], str, int],
 def lcu_1ancilla(ancilla: Union[str, int],
                  unitaries: list[tuple[float, tq.QCircuit]],
                  tolerance: Optional[float] = TARGET_FIDELITY) -> tq.QCircuit:
-    """The main part.
-
-    TODO: write proper docstring
+    """Return the walk operator for the LCU algorithm, W = Prep + Select + Prep.dagger()
     """
     prepare = _prepare_1ancilla(ancilla, unitaries)
 
@@ -453,9 +459,7 @@ def _select_1ancilla(ancillary, unitary_0: tq.QCircuit, unitary_1: tq.QCircuit) 
     unitary operators.
     Requires only one ancillary qubit.
 
-    Returns ...
-
-    TODO: Complete docstring
+    Returns the select operator for 1 ancillary qubit
     """
     impl_1 = _control_unitary(ancilla=ancillary, unitary=unitary_1)
 
@@ -690,24 +694,6 @@ def _num_iter(unitaries: list[tuple[float, tq.QCircuit]]) -> int:
     alpha = arcsin(1 / s)
     frac = (pi / 2) / alpha
     return floor(0.5 * (frac - 1))
-
-
-def _add_qubits(anc: list[Union[str, int]], length: Optional[int] = None) -> list[Union[str, int]]:
-    """Add more items to the ancilla list such that the length increases to length"""
-    ...
-
-
-# Implement testing functions
-
-# TODO
-
-# Test 1 qubit ancilla
-
-# Test 2 qubit ancilla
-
-# Test general case
-
-# Test amplitude amplification
 
 
 # Main testing
