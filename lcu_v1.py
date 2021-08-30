@@ -302,6 +302,7 @@ def prepare_operator(ancilla: list, unitaries: list[tuple[float, tq.QCircuit]],
                                          angle=pi / steps * tq.Variable(name=("t", i, step)),
                                          steps=1)
             circ += x.U.dagger()
+
     # construct an operator that represents the fidelity object
     expect = tq.ExpectationValue(H=projector, U=circ)
 
