@@ -7,7 +7,7 @@ Testing file
 import tequila as tq
 from math import sqrt, isclose
 from numpy import arcsin, asarray
-from lcu_v1 import amp_amp_op, LCU, lcu_1ancilla, prepare_operator, reflect_operator
+from lcu_v1 import LCU, lcu_1ancilla, prepare_operator, reflect_operator
 from typing import Union
 from random import random
 
@@ -137,9 +137,23 @@ def test_prepare_general() -> None:
     assert isclose(fid, 1, abs_tol=0.001)
 
 
+# Test select
+
+
 ############################################################################################
 # Amplitude amplification
 ############################################################################################
+
+def amp_amp_op(walk_op: tq.QCircuit, ancilla) -> tq.QCircuit:
+    """Return W R W.dagger() R,
+     where R is the reflect operator returned by the function reflect_operator"""
+    anc_qubits = ancilla if isinstance(ancilla, list) else [ancilla]
+    state_qubits = [qubit for qubit in walk_op.qubits if qubit not in anc_qubits]
+
+    reflect = reflect_operator(state_qubits=state_qubits, ancilla=ancilla)
+
+    return reflect + walk_op.dagger() + reflect + walk_op
+
 
 #####################
 # Test reflection
@@ -204,7 +218,7 @@ def test_amp_amp_change() -> None:
 
     p = tq.simulate(expval)
 
-    return p
+    print(p)
 
 
 # if __name__ == '__main__':
