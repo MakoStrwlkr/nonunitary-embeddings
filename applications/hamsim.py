@@ -1,6 +1,5 @@
 """
-CSC299 ROP
-Application: Hamiltonian simulation
+Automatized non-unitary embeddings: Time-independent Hamiltonian simulation
 
 While there are better methods for Hamiltonian simulation, this file is simply intended to show
 one possible use of the LCU algorithm.
@@ -46,6 +45,7 @@ def ham_sim(ancilla: Union[list[Union[str, int]], str, int],
     circ = tq.QCircuit()
 
     for _ in range(segments):
+
         circ += segment_evol
 
     return circ
