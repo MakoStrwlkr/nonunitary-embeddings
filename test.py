@@ -131,7 +131,13 @@ def test_prepare_general() -> None:
     wfn_target = tq.QubitWaveFunction.from_array(asarray(coefficients))
 
     prepare = prepare_operator(ancilla=ancilla, unitaries=unitaries)
+    print(tq.simulate(prepare))
+    expval = tq.ExpectationValue(H=projector, U=amp_amp)
 
+    p = tq.simulate(expval)
+
+    print(p)
+    print(wfn_target)
     fid = abs(wfn_target.inner(tq.simulate(prepare))) ** 2
 
     assert isclose(fid, 1, abs_tol=0.001)
@@ -221,6 +227,7 @@ def test_amp_amp_change() -> None:
     print(p)
 
 
-# if __name__ == '__main__':
-#     import pytest
-#     pytest.main()
+if __name__ == '__main__':
+    # import pytest
+    # pytest.main()
+    test_prepare_general()
