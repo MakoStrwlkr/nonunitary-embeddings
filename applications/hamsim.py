@@ -7,7 +7,7 @@ one possible use of the LCU algorithm.
 
 from typing import Union
 import tequila as tq
-from lcu_v1 import LCU
+from src.lcu_v1 import LCU
 from math import log10 as log
 from math import factorial
 

@@ -7,7 +7,7 @@ Testing file
 import tequila as tq
 from math import sqrt, isclose
 from numpy import arcsin, asarray
-from lcu_v1 import LCU, lcu_1ancilla, prepare_operator, reflect_operator
+from src.lcu_v1 import prepare_operator, reflect_operator
 from typing import Union
 from random import random
 
